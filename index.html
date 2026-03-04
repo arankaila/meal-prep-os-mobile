@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="29 Kitchen">
+<meta name="theme-color" content="#0a0a0a">
+<title>29 Kitchen</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+:root {
+  --bg:#080808; --s1:#111; --s2:#181818; --s3:#222; --s4:#2a2a2a;
+  --border:#2a2a2a; --border2:#3a3a3a;
+  --gold:#C9A84C; --gold2:#e4c06e; --gold-bg:rgba(201,168,76,.1);
+  --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  --text:#f0f0f0; --text2:#a0a0a0; --text3:#555;
+  --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif; --display:'Syne',sans-serif;
+  --tab-h:64px; --top-h:56px;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bot: env(safe-area-inset-bottom);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans);}
+
+/* ── TOPBAR ─────────────────────────────────────────── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;
+  height:calc(var(--top-h) + var(--safe-top));
+  padding-top:var(--safe-top);
+  background:rgba(8,8,8,.9);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding-left:18px;padding-right:16px;padding-bottom:10px;
+  z-index:100;
+}
+.topbar-left{display:flex;align-items:baseline;gap:8px;}
+.topbar-logo{font-family:var(--display);font-weight:800;font-size:22px;color:var(--gold);letter-spacing:-0.5px;}
+.topbar-title{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.sync-pill{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;border:1px solid var(--border2);background:var(--s2);cursor:pointer;}
+.sync-pip{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;}
+.sync-pip.ok{background:var(--green);box-shadow:0 0 6px rgba(34,197,94,.5);}
+.sync-pip.syncing{background:var(--amber);animation:blink 1s infinite;}
+.sync-pip.err{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.sync-pill-txt{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.week-chip{font-family:var(--mono);font-size:9px;color:var(--text2);background:var(--s3);padding:4px 8px;border-radius:20px;border:1px solid var(--border);}
+
+/* ── SCROLL AREA ────────────────────────────────────── */
+#scroll{
+  position:fixed;
+  top:calc(var(--top-h) + var(--safe-top));
+  bottom:calc(var(--tab-h) + var(--safe-bot));
+  left:0;right:0;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.page{display:none;min-height:100%;padding:16px 16px 20px;}
+.page.active{display:block;}
+
+/* ── BOTTOM TAB BAR ─────────────────────────────────── */
+#tabbar{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--tab-h) + var(--safe-bot));
+  padding-bottom:var(--safe-bot);
+  background:rgba(10,10,10,.95);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:flex;align-items:flex-start;z-index:100;
+  padding-top:4px;
+}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;cursor:pointer;border:none;background:none;transition:all .15s;}
+.tab-icon{font-size:20px;line-height:1;transition:transform .15s;}
+.tab-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;transition:color .15s;}
+.tab-btn.active .tab-icon{transform:scale(1.1);}
+.tab-btn.active .tab-label{color:var(--gold);}
+.tab-btn.active .tab-icon-wrap{position:relative;}
+.tab-btn.active .tab-icon-wrap::after{content:'';position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);width:18px;height:2px;background:var(--gold);border-radius:1px;}
+
+/* ── CARDS ──────────────────────────────────────────── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;}
+.card-hdr{padding:13px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:-.3px;}
+.card-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:1px;}
+.card-badge{font-family:var(--mono);font-size:10px;color:var(--text2);background:var(--s3);padding:3px 8px;border-radius:10px;border:1px solid var(--border2);}
+
+/* ── KPI ROW ────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.kpi-box{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:14px 16px;position:relative;overflow:hidden;}
+.kpi-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--gold));}
+.kpi-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;}
+.kpi-val{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:-1px;line-height:1;}
+.kpi-sub{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px;}
+.kpi-box.full{grid-column:1/-1;}
+.kpi-box.wide{grid-column:1/-1;}
+
+/* ── DISH CARDS ─────────────────────────────────────── */
+.dish-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px;position:relative;overflow:hidden;}
+.dish-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--margin-color,var(--border));}
+.dish-name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:-.3px;margin-bottom:8px;}
+.dish-components{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+.comp-chip{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--s3);color:var(--text2);letter-spacing:.3px;}
+.comp-chip.protein{border-color:rgba(248,113,113,.3);color:#f87171;background:rgba(248,113,113,.08);}
+.comp-chip.carb{border-color:rgba(251,191,36,.3);color:#fbbf24;background:rgba(251,191,36,.08);}
+.comp-chip.veg{border-color:rgba(74,222,128,.3);color:#4ade80;background:rgba(74,222,128,.08);}
+.comp-chip.sauce{border-color:rgba(196,181,253,.3);color:#c4b5fd;background:rgba(196,181,253,.08);}
+.dish-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.dish-stat{text-align:center;}
+.dish-stat-val{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text);}
+.dish-stat-lbl{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:.5px;margin-top:1px;}
+.dish-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.dish-portions{font-family:var(--mono);font-size:10px;color:var(--text2);}
+.dish-price{font-family:var(--display);font-weight:700;font-size:16px;color:var(--gold);}
+.dish-margin{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:6px;}
+.dish-margin.g{background:rgba(34,197,94,.12);color:#22c55e;}
+.dish-margin.a{background:rgba(245,158,11,.12);color:#f59e0b;}
+.dish-margin.r{background:rgba(239,68,68,.12);color:#ef4444;}
+
+/* ── SESSION TOGGLE ─────────────────────────────────── */
+.sess-toggle{display:flex;gap:6px;margin-bottom:14px;}
+.sess-btn{flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;text-align:center;}
+.sess-btn.active{border-color:var(--gold);background:var(--gold-bg);color:var(--gold);}
+
+/* ── STATION CARDS ──────────────────────────────────── */
+.station-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;}
+.station-hdr{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.station-icon{font-size:18px;}
+.station-name{font-family:var(--display);font-weight:700;font-size:14px;}
+.station-count{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto;}
+.prod-row{padding:11px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;}
+.prod-row:last-child{border-bottom:none;}
+.prod-name{font-size:13px;font-weight:500;}
+.prod-sub{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px;}
+.prod-qty{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--gold);text-align:right;}
+.prod-unit{font-family:var(--mono);font-size:9px;color:var(--text3);text-align:right;}
+.prod-check{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--border2);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.prod-check.done{background:var(--green);border-color:var(--green);}
+.prod-check.done::after{content:'✓';color:#000;font-size:13px;font-weight:700;}
+
+/* ── PACK CARDS ─────────────────────────────────────── */
+.pack-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;}
+.pack-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.pack-dish{font-family:var(--display);font-weight:700;font-size:14px;}
+.pack-qty-big{font-family:var(--display);font-weight:800;font-size:28px;color:var(--gold);line-height:1;}
+.pack-qty-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;}
+.pack-components{padding:10px 16px;}
+.pack-comp-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);}
+.pack-comp-row:last-child{border-bottom:none;}
+.pack-comp-name{font-size:13px;color:var(--text2);}
+.pack-comp-weight{font-family:var(--mono);font-size:12px;color:var(--text);}
+
+/* ── DELIVERY ───────────────────────────────────────── */
+.route-card{background:var(--s1);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;transition:opacity .2s;}
+.route-card.delivered{opacity:.5;}
+.route-hdr{padding:12px 16px;display:flex;align-items:flex-start;gap:12px;}
+.route-num{width:28px;height:28px;border-radius:50%;background:var(--s3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text2);flex-shrink:0;margin-top:1px;}
+.route-num.done{background:var(--green);border-color:var(--green);color:#000;font-weight:700;}
+.route-info{flex:1;}
+.route-name{font-family:var(--display);font-weight:700;font-size:15px;margin-bottom:3px;}
+.route-address{font-size:12px;color:var(--text2);}
+.route-notes{font-size:11px;color:var(--amber);margin-top:3px;}
+.route-items{padding:10px 16px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:5px;}
+.route-item{font-family:var(--mono);font-size:9px;padding:3px 8px;background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);}
+.route-btn{padding:8px 16px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.route-action-btn{flex:1;padding:9px;border-radius:10px;border:none;font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.route-action-btn.confirm{background:var(--green);color:#000;font-weight:700;}
+.route-action-btn.call{background:var(--s3);color:var(--text2);}
+
+/* ── INVENTORY ──────────────────────────────────────── */
+.inv-row{padding:11px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px;}
+.inv-row:last-child{border-bottom:none;}
+.inv-name{font-size:13px;font-weight:500;}
+.inv-cat{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px;}
+.inv-stock{font-family:var(--mono);font-size:14px;text-align:right;}
+.inv-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.inv-status.ok{background:var(--green);}
+.inv-status.low{background:var(--amber);}
+.inv-status.out{background:var(--red);}
+.inv-adj-btns{display:flex;gap:4px;}
+.inv-adj-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--border2);background:var(--s3);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.inv-adj-btn:active{background:var(--s4);}
+
+/* ── ALERTS ─────────────────────────────────────────── */
+.alert-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.alert-row:last-child{border-bottom:none;}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.alert-msg{font-size:12px;color:var(--text2);line-height:1.5;}
+.alert-msg strong{color:var(--text);}
+
+/* ── EMPTY STATE ────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:12px;}
+.empty-msg{font-size:13px;line-height:1.6;}
+
+/* ── FIREBASE SETUP ─────────────────────────────────── */
+#fb-screen{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:999;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+#fb-screen.open{display:flex;}
+.fb-card{background:var(--s1);border:1px solid var(--border2);border-radius:18px;width:100%;max-width:440px;overflow:hidden;}
+.fb-top{background:#000;padding:20px;border-bottom:1px solid var(--border);}
+.fb-logo{font-family:var(--display);font-weight:800;font-size:28px;color:var(--gold);margin-bottom:4px;}
+.fb-title{font-size:15px;font-weight:600;margin-bottom:2px;}
+.fb-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.fb-body{padding:20px;}
+.fb-step{display:flex;gap:10px;margin-bottom:14px;}
+.fb-num{width:20px;height:20px;border-radius:50%;background:var(--gold);color:#000;font-family:var(--mono);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.fb-txt{font-size:12px;color:var(--text2);line-height:1.6;}
+.fb-txt strong{color:var(--text);}
+.fb-txt a{color:var(--blue);}
+.fb-textarea{width:100%;background:var(--s2);border:1.5px solid var(--border2);border-radius:10px;padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--text);resize:none;height:110px;outline:none;margin-top:14px;transition:border-color .15s;line-height:1.5;}
+.fb-textarea:focus{border-color:var(--gold);}
+.fb-textarea.err{border-color:var(--red);}
+.fb-err{font-family:var(--mono);font-size:10px;color:var(--red);min-height:14px;margin-top:5px;}
+.fb-footer{padding:14px 20px 20px;display:flex;gap:8px;border-top:1px solid var(--border);}
+.btn-gold{padding:11px 18px;border-radius:10px;border:none;background:var(--gold);color:#000;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:opacity .15s;}
+.btn-gold:active{opacity:.8;}
+.btn-ghost{padding:11px 18px;border-radius:10px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;}
+.btn-ghost:active{background:var(--s3);}
+.btn-link{font-family:var(--mono);font-size:10px;color:var(--text3);cursor:pointer;text-decoration:underline;margin-left:auto;align-self:center;}
+
+/* ── NOTIF TOAST ────────────────────────────────────── */
+.notif{position:fixed;bottom:calc(var(--tab-h) + var(--safe-bot) + 12px);left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border2);border-radius:20px;padding:9px 18px;font-family:var(--mono);font-size:11px;color:var(--text);z-index:500;white-space:nowrap;animation:fadeup .25s ease;}
+@keyframes fadeup{from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+
+/* ── PAGE HEADER ─────────────────────────────────────── */
+.page-hdr{margin-bottom:16px;}
+.page-hdr-title{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.5px;}
+.page-hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:3px;letter-spacing:.5px;text-transform:uppercase;}
+
+/* ── SECTION LABEL ──────────────────────────────────── */
+.section-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;padding-left:2px;}
+
+/* ── QUICK FILTER ───────────────────────────────────── */
+.filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-chip{flex-shrink:0;padding:6px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-family:var(--mono);font-size:10px;cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+.filter-chip.active{border-color:var(--gold);background:var(--gold-bg);color:var(--gold);}
+
+/* ── PURCHASING ─────────────────────────────────────── */
+.purch-group{background:var(--s1);border:1px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden;}
+.purch-group-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.purch-group-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+.purch-group-name{font-family:var(--display);font-weight:700;font-size:14px;flex:1;}
+.purch-group-cost{font-family:var(--mono);font-size:12px;color:var(--gold);font-weight:700;}
+.purch-item{padding:11px 16px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;}
+.purch-item:last-child{border-bottom:none;}
+.purch-item.covered{opacity:.45;}
+.purch-item-name{font-size:13px;font-weight:500;margin-bottom:3px;}
+.purch-item-meta{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.7;}
+.purch-item-right{text-align:right;}
+.purch-net-qty{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--gold);}
+.purch-net-qty.covered{color:var(--green);font-size:13px;}
+.purch-net-cost{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:2px;}
+.purch-flag{display:inline-block;font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:4px;margin-left:4px;}
+.purch-flag.par{background:rgba(245,158,11,.12);color:var(--amber);}
+.purch-flag.covered{background:rgba(34,197,94,.12);color:var(--green);}
+
+/* ── UTIL ───────────────────────────────────────────── */
+.mono{font-family:var(--mono);}
+.gold{color:var(--gold);}
+.green{color:var(--green);}
+.red{color:var(--red);}
+.amber{color:var(--amber);}
+.muted{color:var(--text3);}
+.divider{height:1px;background:var(--border);margin:12px 0;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">29</div>
+    <div class="topbar-title" id="topbar-title">Kitchen</div>
+  </div>
+  <div class="topbar-right">
+    <div class="week-chip" id="week-chip">—</div>
+    <div class="sync-pill" onclick="openFbSetup()" title="Sync settings">
+      <div class="sync-pip" id="sync-pip"></div>
+      <div class="sync-pill-txt" id="sync-txt">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- SCROLL AREA -->
+<div id="scroll">
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <div class="page active" id="page-home">
+    <div class="page-hdr">
+      <div class="page-hdr-title">This Week</div>
+      <div class="page-hdr-sub" id="home-week-sub">Loading…</div>
+    </div>
+    <div class="kpi-row" id="home-kpis"></div>
+    <div class="section-lbl">Alerts</div>
+    <div class="card">
+      <div id="home-alerts" style="padding:4px 6px;"></div>
+    </div>
+    <div class="section-lbl" style="margin-top:14px;">Menu Summary</div>
+    <div class="card" id="home-menu-summary"></div>
+  </div>
+
+  <!-- ═══ MENU ═══ -->
+  <div class="page" id="page-menu">
+    <div class="page-hdr">
+      <div class="page-hdr-title">Weekly Menu</div>
+      <div class="page-hdr-sub" id="menu-dish-count">—</div>
+    </div>
+    <div class="sess-toggle">
+      <button class="sess-btn active" onclick="setMenuSess('all',this)">All</button>
+      <button class="sess-btn" onclick="setMenuSess('s1',this)">Session 1</button>
+      <button class="sess-btn" onclick="setMenuSess('s2',this)">Session 2</button>
+    </div>
+    <div id="menu-list"></div>
+  </div>
+
+  <!-- ═══ PRODUCTION ═══ -->
+  <div class="page" id="page-production">
+    <div class="page-hdr">
+      <div class="page-hdr-title">Production</div>
+      <div class="page-hdr-sub">Batch quantities by station</div>
+    </div>
+    <div class="sess-toggle">
+      <button class="sess-btn active" onclick="setProdSess('all',this)">All</button>
+      <button class="sess-btn" onclick="setProdSess('s1',this)">Session 1</button>
+      <button class="sess-btn" onclick="setProdSess('s2',this)">Session 2</button>
+    </div>
+    <div id="prod-list"></div>
+  </div>
+
+  <!-- ═══ PACK ═══ -->
+  <div class="page" id="page-pack">
+    <div class="page-hdr">
+      <div class="page-hdr-title">Packaging</div>
+      <div class="page-hdr-sub">Per-dish box weights</div>
+    </div>
+    <div class="sess-toggle">
+      <button class="sess-btn active" onclick="setPackSess('all',this)">All</button>
+      <button class="sess-btn" onclick="setPackSess('s1',this)">Session 1</button>
+      <button class="sess-btn" onclick="setPackSess('s2',this)">Session 2</button>
+    </div>
+    <div id="pack-list"></div>
+  </div>
+
+  <!-- ═══ PURCHASING ═══ -->
+  <div class="page" id="page-purchasing">
+    <div class="page-hdr">
+      <div class="page-hdr-title">Order List</div>
+      <div class="page-hdr-sub" id="purch-sub">Supplier order for this week</div>
+    </div>
+    <div class="sess-toggle">
+      <button class="sess-btn active" onclick="setPurchSess('all',this)">All</button>
+      <button class="sess-btn" onclick="setPurchSess('s1',this)">Session 1</button>
+      <button class="sess-btn" onclick="setPurchSess('s2',this)">Session 2</button>
+    </div>
+    <div class="kpi-row" id="purch-kpis"></div>
+    <div class="filter-row" id="purch-filter-row"></div>
+    <div id="purch-list"></div>
+  </div>
+
+  <!-- ═══ DELIVERY ═══ -->
+  <div class="page" id="page-delivery">
+    <div class="page-hdr">
+      <div class="page-hdr-title">Delivery</div>
+      <div class="page-hdr-sub" id="del-sub">Route sheet</div>
+    </div>
+    <div class="filter-row" id="del-filter-row"></div>
+    <div id="delivery-list"></div>
+  </div>
+
+</div><!-- /scroll -->
+
+<!-- BOTTOM TAB BAR -->
+<div id="tabbar">
+  <button class="tab-btn active" onclick="showPage('home',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">📊</div></div>
+    <div class="tab-label">Home</div>
+  </button>
+  <button class="tab-btn" onclick="showPage('menu',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">📋</div></div>
+    <div class="tab-label">Menu</div>
+  </button>
+  <button class="tab-btn" onclick="showPage('production',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">🏭</div></div>
+    <div class="tab-label">Produce</div>
+  </button>
+  <button class="tab-btn" onclick="showPage('pack',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">📦</div></div>
+    <div class="tab-label">Pack</div>
+  </button>
+  <button class="tab-btn" onclick="showPage('purchasing',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">🛒</div></div>
+    <div class="tab-label">Order</div>
+  </button>
+  <button class="tab-btn" onclick="showPage('delivery',this)">
+    <div class="tab-icon-wrap"><div class="tab-icon">🚐</div></div>
+    <div class="tab-label">Deliver</div>
+  </button>
+</div>
+
+<!-- FIREBASE SETUP SCREEN -->
+<div id="fb-screen">
+  <div class="fb-card">
+    <div class="fb-top">
+      <div class="fb-logo">29</div>
+      <div class="fb-title">Connect Firebase Sync</div>
+      <div class="fb-sub">Paste the same config as your desktop app</div>
+    </div>
+    <div class="fb-body">
+      <div class="fb-step">
+        <div class="fb-num">1</div>
+        <div class="fb-txt">Go to <a href="https://console.firebase.google.com" target="_blank"><strong>console.firebase.google.com</strong></a> → your project → Project Settings → Your apps → copy the <strong>firebaseConfig</strong> object.</div>
+      </div>
+      <div class="fb-step">
+        <div class="fb-num">2</div>
+        <div class="fb-txt">Paste it below — the same config you used on your desktop. This app reads from the same database so data stays in sync automatically.</div>
+      </div>
+      <textarea class="fb-textarea" id="fb-input" spellcheck="false" placeholder='{
+  "apiKey": "AIza...",
+  "databaseURL": "https://your-project-default-rtdb...",
+  ...
+}'></textarea>
+      <div class="fb-err" id="fb-err"></div>
+    </div>
+    <div class="fb-footer">
+      <button class="btn-gold" onclick="connectFb()">🔗 Connect</button>
+      <button class="btn-ghost" onclick="closeFbScreen()">Later</button>
+      <span class="btn-link" onclick="skipFb()">Skip</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+let DB = {
+  ingredients:[], recipes:[], menuDishes:[], menuWeekLabel:'',
+  weeklyArchives:[], costItems:[], labourStaff:[], labourShifts:[],
+  customers:[], weeklyOrders:[], routeConfirmations:{},
+  ingCategories:[], inventory:{},
+};
+
+let purchSess = 'all';
+
+// ── Session filters ──────────────────────────────────────────
+let menuSess = 'all';
+let prodSess = 'all';
+let packSess = 'all';
+let prodChecked = {};  // local check-off state (not synced)
+let delFilter = 'all';
+
+// ── Helpers ──────────────────────────────────────────────────
+function n(v){ return isNaN(parseFloat(v)) ? 0 : parseFloat(v); }
+function pct(v){ return (v*100).toFixed(1)+'%'; }
+function calcEP(ing){ return n(ing.ap) / ((n(ing.proc)||100)/100) / ((n(ing.cook)||100)/100); }
+function dishPortions(d, sess){
+  if(sess==='s1') return n(d.drop1);
+  if(sess==='s2') return n(d.drop2);
+  return n(d.drop1)+n(d.drop2);
+}
+function getTotalFixed(){
+  return (DB.costItems||[]).filter(c=>c.cat!=='food'&&c.cat!=='labour').reduce((s,c)=>s+n(c.val),0);
+}
+function calcDishTotals(dish){
+  const slots=['protein','carb','veg','condiment','complete'];
+  let cost=0,kcal=0,prot=0,carb=0,fat=0;
+  slots.forEach(slot=>{
+    const rname=dish[slot]; if(!rname) return;
+    const rec=DB.recipes.find(r=>r.name===rname); if(!rec) return;
+    const scale=n(dish['scale'+slot.charAt(0).toUpperCase()+slot.slice(1)])||1;
+    rec.lines?.forEach(l=>{
+      const ing=DB.ingredients.find(i=>i.id===l.ingId); if(!ing) return;
+      const ep=calcEP(ing);
+      const qty=n(l.qty)*scale/100;
+      cost+=ep*qty; kcal+=n(ing.kcal)*qty; prot+=n(ing.prot)*qty;
+      carb+=n(ing.carb)*qty; fat+=n(ing.fat)*qty;
+    });
+  });
+  const sell=n(dish.sellPrice)||n(DB.defaultSellPrice)||9.99;
+  const fixed=getTotalFixed()/Math.max(DB.menuDishes.length,1);
+  const cogs=cost+fixed;
+  const margin=sell>0?(sell-cogs)/sell:0;
+  return {cost,kcal,prot,carb,fat,sell,margin,cogs};
+}
+function calcRecipeCooked(rec){
+  if(!rec?.lines) return 0;
+  let total=0;
+  rec.lines.forEach(l=>{
+    const ing=DB.ingredients.find(i=>i.id===l.ingId); if(!ing) return;
+    const raw=n(l.qty);
+    const proc=(n(ing.proc)||100)/100;
+    const cook=(n(ing.cook)||100)/100;
+    total+=raw*proc*cook;
+  });
+  return total;
+}
+function weekLabel(){
+  const now=new Date();
+  const mon=new Date(now); mon.setDate(now.getDate()-((now.getDay()+6)%7));
+  return 'w/c '+mon.getDate()+' '+mon.toLocaleString('en-GB',{month:'short'});
+}
+function notify(msg){
+  const el=document.createElement('div'); el.className='notif'; el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.style.opacity='0',2200);
+  setTimeout(()=>el.remove(),2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+const PAGE_TITLES = {home:'Kitchen',menu:'Menu',production:'Production',pack:'Pack',purchasing:'Order List',delivery:'Deliver'};
+function showPage(id, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  document.getElementById('topbar-title').textContent = PAGE_TITLES[id]||id;
+  document.getElementById('scroll').scrollTop = 0;
+  const renders = {home:renderHome,menu:renderMenu,production:renderProd,pack:renderPack,purchasing:renderPurchasing,delivery:renderDelivery};
+  if(renders[id]) renders[id]();
+}
+
+function setMenuSess(s,btn){
+  menuSess=s;
+  document.querySelectorAll('#page-menu .sess-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMenu();
+}
+function setProdSess(s,btn){
+  prodSess=s;
+  document.querySelectorAll('#page-production .sess-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderProd();
+}
+function setPackSess(s,btn){
+  packSess=s;
+  document.querySelectorAll('#page-pack .sess-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPack();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: HOME
+// ═══════════════════════════════════════════════════════════════
+function renderHome(){
+  const dishes = DB.menuDishes||[];
+  const hist   = DB.weeklyArchives||[];
+  const wl     = weekLabel();
+  document.getElementById('home-week-sub').textContent = wl;
+  document.getElementById('week-chip').textContent = wl;
+
+  const totalPorts = dishes.reduce((s,d)=>s+n(d.drop1)+n(d.drop2),0);
+  const totalRev   = dishes.reduce((s,d)=>{const t=calcDishTotals(d);return s+t.sell*dishPortions(d,'all');},0);
+  const totalCost  = dishes.reduce((s,d)=>{const t=calcDishTotals(d);return s+t.cost*dishPortions(d,'all');},0);
+  const avgMargin  = totalRev>0?(totalRev-totalCost)/totalRev:0;
+  const labourCost = (DB.labourShifts||[]).reduce((s,sh)=>{
+    const st=(DB.labourStaff||[]).find(x=>x.id===sh.staffId);
+    const hrs=shiftHours(sh.start,sh.end);
+    return s+hrs*n(st?.rate||0);
+  },0);
+  const netProfit = totalRev-totalCost-labourCost;
+
+  const mClass = avgMargin>=0.5?'green':avgMargin>=0.35?'amber':'red';
+  const nClass = netProfit>=0?'green':'red';
+
+  document.getElementById('home-kpis').innerHTML = `
+    <div class="kpi-box" style="--accent:var(--gold)">
+      <div class="kpi-label">Est Revenue</div>
+      <div class="kpi-val gold">£${totalRev.toFixed(0)}</div>
+      <div class="kpi-sub">${totalPorts} portions · ${dishes.length} dishes</div>
+    </div>
+    <div class="kpi-box" style="--accent:var(--green)">
+      <div class="kpi-label">After Food Cost</div>
+      <div class="kpi-val ${nClass}">£${netProfit.toFixed(0)}</div>
+      <div class="kpi-sub">food + labour</div>
+    </div>
+    <div class="kpi-box" style="--accent:var(--blue)">
+      <div class="kpi-label">Food Margin</div>
+      <div class="kpi-val ${mClass}">${pct(avgMargin)}</div>
+      <div class="kpi-sub">target ≥ 50%</div>
+    </div>
+    <div class="kpi-box" style="--accent:var(--amber)">
+      <div class="kpi-label">Labour Cost</div>
+      <div class="kpi-val">£${labourCost.toFixed(0)}</div>
+      <div class="kpi-sub">${totalRev>0?pct(labourCost/totalRev):'-'} of rev</div>
+    </div>
+  `;
+
+  // Alerts
+  const alerts = [];
+  if(dishes.length===0) alerts.push({icon:'📋',msg:'<strong>No menu yet.</strong> Add dishes on the desktop app.'});
+  dishes.forEach(d=>{
+    const t=calcDishTotals(d);
+    if(t.margin<0.35) alerts.push({icon:'⚠️',msg:`<strong>${d.name}</strong> margin is ${pct(t.margin)} — below 35% threshold`});
+  });
+  const invItems = Object.entries(DB.inventory||{});
+  invItems.forEach(([ingId,inv])=>{
+    const ing=DB.ingredients.find(i=>i.id===ingId);
+    const stock=n(inv.stock||0); const par=n(inv.par||0);
+    if(par>0&&stock<=0) alerts.push({icon:'🔴',msg:`<strong>${ing?.name||ingId}</strong> is out of stock`});
+    else if(par>0&&stock<par) alerts.push({icon:'🟡',msg:`<strong>${ing?.name||ingId}</strong> is below PAR (${stock}g / PAR ${par}g)`});
+  });
+  const alertsEl=document.getElementById('home-alerts');
+  alertsEl.innerHTML = alerts.length
+    ? alerts.map(a=>`<div class="alert-row"><div class="alert-icon">${a.icon}</div><div class="alert-msg">${a.msg}</div></div>`).join('')
+    : '<div class="alert-row"><div class="alert-icon">✅</div><div class="alert-msg"><strong>All clear.</strong> No alerts this week.</div></div>';
+
+  // Menu summary table
+  const summaryEl=document.getElementById('home-menu-summary');
+  if(!dishes.length){ summaryEl.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-msg">No menu — build it on the desktop app.</div></div>'; return; }
+  summaryEl.innerHTML = `
+    <div class="card-hdr"><div><div class="card-title">Dishes</div></div><div class="card-badge">${dishes.length}</div></div>
+    ${dishes.map(d=>{
+      const t=calcDishTotals(d);
+      const mc=t.margin>=0.5?'g':t.margin>=0.35?'a':'r';
+      return `<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;font-weight:500">${d.name||'Unnamed'}</div>
+          <div class="mono muted" style="font-size:10px;margin-top:2px">${n(d.drop1)+n(d.drop2)} portions · £${t.cost.toFixed(2)} cost</div>
+        </div>
+        <div class="dish-margin ${mc}">${pct(t.margin)}</div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function shiftHours(start,end){
+  if(!start||!end) return 0;
+  const [sh,sm]=(start||'0:0').split(':').map(Number);
+  const [eh,em]=(end||'0:0').split(':').map(Number);
+  const diff=(eh*60+em)-(sh*60+sm);
+  return Math.max(0,diff)/60;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: MENU
+// ═══════════════════════════════════════════════════════════════
+function renderMenu(){
+  const dishes=(DB.menuDishes||[]).filter(d=>menuSess==='all'||dishPortions(d,menuSess)>0);
+  document.getElementById('menu-dish-count').textContent = dishes.length+' dish'+(dishes.length!==1?'es':'');
+  const el=document.getElementById('menu-list');
+  if(!dishes.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-msg">No dishes for this session.</div></div>';return;}
+  el.innerHTML = dishes.map(d=>{
+    const t=calcDishTotals(d);
+    const mc=t.margin>=0.5?'g':t.margin>=0.35?'a':'r';
+    const ports=dishPortions(d,menuSess);
+    const mcColor=mc==='g'?'var(--green)':mc==='a'?'var(--amber)':'var(--red)';
+    const comps=[];
+    if(d.protein) comps.push({name:d.protein,cls:'protein'});
+    if(d.carb)    comps.push({name:d.carb,   cls:'carb'});
+    if(d.veg)     comps.push({name:d.veg,    cls:'veg'});
+    if(d.condiment) comps.push({name:d.condiment,cls:'sauce'});
+    if(d.complete)  comps.push({name:d.complete, cls:'sauce'});
+    return `<div class="dish-card" style="--margin-color:${mcColor}">
+      <div class="dish-name">${d.name||'Unnamed dish'}</div>
+      <div class="dish-components">${comps.map(c=>`<span class="comp-chip ${c.cls}">${c.name}</span>`).join('')||'<span class="comp-chip">No components</span>'}</div>
+      <div class="dish-stats">
+        <div class="dish-stat"><div class="dish-stat-val">${t.kcal.toFixed(0)}</div><div class="dish-stat-lbl">kcal</div></div>
+        <div class="dish-stat"><div class="dish-stat-val">${t.prot.toFixed(1)}g</div><div class="dish-stat-lbl">protein</div></div>
+        <div class="dish-stat"><div class="dish-stat-val">${t.carb.toFixed(1)}g</div><div class="dish-stat-lbl">carbs</div></div>
+        <div class="dish-stat"><div class="dish-stat-val">${t.fat.toFixed(1)}g</div><div class="dish-stat-lbl">fat</div></div>
+      </div>
+      <div class="dish-footer">
+        <div class="dish-portions">${ports} portions</div>
+        <div class="dish-price">£${t.sell.toFixed(2)}</div>
+        <div class="dish-margin ${mc}">${pct(t.margin)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: PRODUCTION
+// ═══════════════════════════════════════════════════════════════
+function renderProd(){
+  const dishes=(DB.menuDishes||[]).filter(d=>dishPortions(d,prodSess)>0);
+  const el=document.getElementById('prod-list');
+  if(!dishes.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏭</div><div class="empty-msg">No dishes for this session.</div></div>';return;}
+
+  // Group by station (from recipe) then by component type
+  const stationMap = {};
+  const STATION_ICONS = {'Protein Station':'🥩','Carb Station':'🌾','Veg Station':'🥦','Sauce Station':'🫙','Cold Station':'❄️','Default':'🍳'};
+
+  dishes.forEach(dish=>{
+    const ports=dishPortions(dish,prodSess);
+    const slots=['protein','carb','veg','condiment','complete'];
+    slots.forEach(slot=>{
+      const rname=dish[slot]; if(!rname) return;
+      const rec=DB.recipes.find(r=>r.name===rname); if(!rec) return;
+      const scale=n(dish['scale'+slot.charAt(0).toUpperCase()+slot.slice(1)])||1;
+      const station=rec.station||'Default';
+      if(!stationMap[station]) stationMap[station]=[];
+
+      // Check if recipe already in this station (accumulate portions)
+      const existing=stationMap[station].find(r=>r.recId===rec.id&&r.dishName===dish.name);
+      if(existing){ existing.portions+=ports; return; }
+
+      // Batch weight = sum of cooked weights × scale × portions
+      const batchG = calcRecipeCooked(rec) * scale * ports;
+      stationMap[station].push({
+        recId: rec.id,
+        dishName: dish.name,
+        recName: rname,
+        cookMethod: rec.cookMethod||'',
+        cookTime: n(rec.cookTime)+n(rec.prepTime),
+        portions, batchG, station,
+        slot
+      });
+    });
+  });
+
+  const stationOrder=['Protein Station','Carb Station','Veg Station','Sauce Station','Cold Station','Default'];
+  const sorted=Object.entries(stationMap).sort((a,b)=>{
+    const ia=stationOrder.indexOf(a[0]); const ib=stationOrder.indexOf(b[0]);
+    return (ia===-1?99:ia)-(ib===-1?99:ib);
+  });
+
+  el.innerHTML = sorted.map(([station,items])=>`
+    <div class="station-card">
+      <div class="station-hdr">
+        <div class="station-icon">${STATION_ICONS[station]||'🍳'}</div>
+        <div class="station-name">${station}</div>
+        <div class="station-count">${items.length} item${items.length!==1?'s':''}</div>
+      </div>
+      ${items.map(item=>{
+        const key=item.recId+'_'+item.dishName;
+        const done=prodChecked[key];
+        return `<div class="prod-row">
+          <div>
+            <div class="prod-name">${item.recName}</div>
+            <div class="prod-sub">${item.dishName}${item.cookMethod?' · '+item.cookMethod:''}${item.cookTime?' · '+item.cookTime+'min':''}</div>
+          </div>
+          <div>
+            <div class="prod-qty">${item.batchG>0?Math.round(item.batchG)+'g':'—'}</div>
+            <div class="prod-unit">${item.portions} portions</div>
+          </div>
+          <div class="prod-check ${done?'done':''}" onclick="toggleProdCheck('${key}',this)"></div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('');
+}
+
+function toggleProdCheck(key, el){
+  prodChecked[key] = !prodChecked[key];
+  el.classList.toggle('done', prodChecked[key]);
+  if(prodChecked[key]) notify('✓ Marked done');
+}
+
+function setPurchSess(s,btn){
+  purchSess=s;
+  document.querySelectorAll('#page-purchasing .sess-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPurchasing();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: PURCHASING
+// ═══════════════════════════════════════════════════════════════
+function getCatColor(catName){
+  const c=(DB.ingCategories||[]).find(c=>c.name===catName);
+  return c?.color||'#94a3b8';
+}
+function getEffectivePar(ingId){
+  const invRec=DB.inventory?.[ingId];
+  if(invRec?.par!=null) return n(invRec.par);
+  const ing=DB.ingredients.find(i=>i.id===ingId);
+  return n(ing?.par||0);
+}
+
+function renderPurchasing(){
+  const dishes = DB.menuDishes||[];
+
+  // ── Build ingredient demand (edible grams) ──────────────────
+  const ingDemand={};
+  dishes.forEach(dish=>{
+    const ports = dishPortions(dish, purchSess);
+    if(ports===0) return;
+    const slots=['protein','carb','veg','condiment','complete'];
+    slots.forEach(slot=>{
+      if(!dish[slot]) return;
+      const rec=DB.recipes.find(r=>r.name===dish[slot]);
+      if(!rec?.lines) return;
+      const scale=n(dish['scale'+slot.charAt(0).toUpperCase()+slot.slice(1)])||1;
+      const overall=n(dish.scaleOverall)||1;
+      rec.lines.forEach(l=>{
+        const ing=DB.ingredients.find(i=>i.id===l.ingId);
+        if(!ing) return;
+        ingDemand[ing.id]=(ingDemand[ing.id]||0)+n(l.qty)*scale*overall*ports;
+      });
+    });
+  });
+
+  // ── Convert to order rows ───────────────────────────────────
+  const orderRows = Object.entries(ingDemand).map(([ingId,edibleG])=>{
+    const ing=DB.ingredients.find(i=>i.id===ingId);
+    if(!ing) return null;
+    const procYield=(n(ing.proc)||100)/100;
+    const rawG=edibleG/procYield;
+    const onHand=n(DB.inventory?.[ingId]?.onHand||0);
+    const netRaw=Math.max(0,rawG-onHand);
+    const netEdible=netRaw*procYield;
+    const epCost=calcEP(ing);
+    const netCost=(netEdible/100)*epCost;
+    const fullCost=(edibleG/100)*epCost;
+    const covered=netRaw<=0;
+    const par=getEffectivePar(ingId);
+    const belowPar=par>0&&rawG<par&&!covered;
+    return {ing,edibleG,rawG,onHand,netRaw,netCost,fullCost,covered,belowPar,par};
+  }).filter(Boolean);
+
+  // ── KPIs ────────────────────────────────────────────────────
+  const totalLines=orderRows.length;
+  const coveredCount=orderRows.filter(r=>r.covered).length;
+  const totalNetCost=orderRows.reduce((s,r)=>s+r.netCost,0);
+  const totalRawKg=orderRows.reduce((s,r)=>s+r.netRaw,0)/1000;
+  const supplierCount=new Set(orderRows.map(r=>r.ing.supplier||'Misc')).size;
+
+  document.getElementById('purch-sub').textContent =
+    `${totalLines} ingredient${totalLines!==1?'s':''} · ${coveredCount} covered by stock`;
+
+  document.getElementById('purch-kpis').innerHTML=`
+    <div class="kpi-box" style="--accent:var(--gold)">
+      <div class="kpi-label">Net to Order</div>
+      <div class="kpi-val gold">£${totalNetCost.toFixed(2)}</div>
+      <div class="kpi-sub">${totalRawKg.toFixed(1)}kg to buy</div>
+    </div>
+    <div class="kpi-box" style="--accent:var(--blue)">
+      <div class="kpi-label">Lines</div>
+      <div class="kpi-val">${totalLines}</div>
+      <div class="kpi-sub">${coveredCount} in stock · ${supplierCount} supplier${supplierCount!==1?'s':''}</div>
+    </div>
+  `;
+
+  if(!orderRows.length){
+    document.getElementById('purch-filter-row').innerHTML='';
+    document.getElementById('purch-list').innerHTML='<div class="empty"><div class="empty-icon">🛒</div><div class="empty-msg">No purchasing data — add dishes to the menu first.</div></div>';
+    return;
+  }
+
+  // ── Group by category ───────────────────────────────────────
+  const byCat={};
+  orderRows.forEach(r=>{
+    const cat=r.ing.cat||'General';
+    if(!byCat[cat]) byCat[cat]=[];
+    byCat[cat].push(r);
+  });
+  Object.values(byCat).forEach(rows=>rows.sort((a,b)=>a.ing.name.localeCompare(b.ing.name)));
+
+  // Category filter chips
+  const allCats=Object.keys(byCat).sort();
+  const activeFilter=window._purchCatFilter||'all';
+  document.getElementById('purch-filter-row').innerHTML=
+    ['all',...allCats].map(cat=>`
+      <div class="filter-chip ${activeFilter===cat?'active':''}"
+        onclick="setPurchCatFilter('${cat}',this)">${cat==='all'?'All':cat}</div>
+    `).join('');
+
+  // Render groups
+  const filteredCats=activeFilter==='all'?allCats:[activeFilter];
+  const el=document.getElementById('purch-list');
+  el.innerHTML=filteredCats.map(cat=>{
+    const rows=byCat[cat]||[];
+    const groupNetCost=rows.reduce((s,r)=>s+r.netCost,0);
+    const color=getCatColor(cat);
+    return `<div class="purch-group">
+      <div class="purch-group-hdr">
+        <div class="purch-group-dot" style="background:${color}"></div>
+        <div class="purch-group-name">${cat}</div>
+        <div class="purch-group-cost">£${groupNetCost.toFixed(2)}</div>
+      </div>
+      ${rows.map(r=>`
+        <div class="purch-item ${r.covered?'covered':''}">
+          <div>
+            <div class="purch-item-name">
+              ${r.ing.name}
+              ${r.covered?'<span class="purch-flag covered">✓ In stock</span>':''}
+              ${r.belowPar?'<span class="purch-flag par">⚠ PAR</span>':''}
+            </div>
+            <div class="purch-item-meta">
+              Need ${r.rawG.toFixed(0)}g raw · On hand ${r.onHand.toFixed(0)}g
+              ${r.par>0?' · PAR '+r.par+'g':''}
+              ${r.ing.supplier?' · '+r.ing.supplier:''}
+            </div>
+          </div>
+          <div class="purch-item-right">
+            <div class="purch-net-qty ${r.covered?'covered'?'covered':'':''}">${r.covered?'✓ Covered':r.netRaw.toFixed(0)+'g'}</div>
+            <div class="purch-net-cost">${r.covered?'':'£'+r.netCost.toFixed(2)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+  }).join('');
+}
+
+function setPurchCatFilter(cat, el){
+  window._purchCatFilter=cat;
+  document.querySelectorAll('#purch-filter-row .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderPurchasing();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: PACK
+// ═══════════════════════════════════════════════════════════════
+function renderPack(){
+  const dishes=(DB.menuDishes||[]).filter(d=>dishPortions(d,packSess)>0);
+  const el=document.getElementById('pack-list');
+  if(!dishes.length){el.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-msg">No dishes for this session.</div></div>';return;}
+
+  el.innerHTML = dishes.map(dish=>{
+    const ports=dishPortions(dish,packSess);
+    const slots=['protein','carb','veg','condiment','complete'];
+    const compRows=[];
+    let totalW=0;
+    slots.forEach(slot=>{
+      const rname=dish[slot]; if(!rname) return;
+      const rec=DB.recipes.find(r=>r.name===rname); if(!rec) return;
+      const scale=n(dish['scale'+slot.charAt(0).toUpperCase()+slot.slice(1)])||1;
+      const cookedW=calcRecipeCooked(rec)*scale;
+      totalW+=cookedW;
+      const slotLabel={protein:'P',carb:'C',veg:'V',condiment:'S',complete:'★'}[slot]||slot;
+      compRows.push({name:rname,weight:cookedW,label:slotLabel});
+    });
+    return `<div class="pack-card">
+      <div class="pack-hdr">
+        <div>
+          <div class="pack-dish">${dish.name||'Unnamed'}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:3px;">${totalW>0?Math.round(totalW)+'g total':''}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pack-qty-big">${ports}</div>
+          <div class="pack-qty-lbl">boxes</div>
+        </div>
+      </div>
+      <div class="pack-components">
+        ${compRows.map(c=>`
+          <div class="pack-comp-row">
+            <div class="pack-comp-name"><span class="mono muted" style="font-size:10px;margin-right:6px;">${c.label}</span>${c.name}</div>
+            <div class="pack-comp-weight">${c.weight>0?Math.round(c.weight)+'g':'—'}</div>
+          </div>
+        `).join('')}
+        ${compRows.length===0?'<div class="muted" style="font-size:12px;padding:4px 0;">No components set</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER: DELIVERY
+// ═══════════════════════════════════════════════════════════════
+function renderDelivery(){
+  const orders=(DB.weeklyOrders||[]);
+  const customers=(DB.customers||[]);
+  const confirmations=DB.routeConfirmations||{};
+
+  // Build filter chips from orders
+  const filterRow=document.getElementById('del-filter-row');
+  const sessionSet=new Set(orders.map(o=>o.session||'S1'));
+  const chips=['all',...[...sessionSet].sort()];
+  filterRow.innerHTML=chips.map(s=>`
+    <div class="filter-chip ${delFilter===s?'active':''}" onclick="setDelFilter('${s}',this)">${s==='all'?'All':s}</div>
+  `).join('');
+
+  // Filter orders
+  const filtered=orders.filter(o=>{
+    if(delFilter==='all') return true;
+    return (o.session||'S1')===delFilter;
+  });
+
+  // Sort by postcode
+  const sorted=[...filtered].sort((a,b)=>{
+    const ca=customers.find(c=>c.id===a.customerId);
+    const cb=customers.find(c=>c.id===b.customerId);
+    return (ca?.postcode||'').localeCompare(cb?.postcode||'');
+  });
+
+  document.getElementById('del-sub').textContent = `${sorted.length} order${sorted.length!==1?'s':''} · ${filtered.filter(o=>confirmations[o.id]?.delivered).length} delivered`;
+
+  const el=document.getElementById('delivery-list');
+  if(!sorted.length){el.innerHTML='<div class="empty"><div class="empty-icon">🚐</div><div class="empty-msg">No orders this week.<br>Add orders on the desktop app.</div></div>';return;}
+
+  el.innerHTML=sorted.map((order,idx)=>{
+    const cust=customers.find(c=>c.id===order.customerId);
+    const conf=confirmations[order.id]||{};
+    const isDelivered=!!conf.delivered;
+    const name=order.labelName||cust?.name||'Walk-in';
+    const address=cust?.address||'';
+    const postcode=cust?.postcode||'';
+    const phone=cust?.phone||'';
+    const dietary=cust?.dietary||order.dietary||'';
+    const driverNotes=cust?.deliveryNotes||'';
+    const items=order.items||[];
+    return `<div class="route-card ${isDelivered?'delivered':''}">
+      <div class="route-hdr">
+        <div class="route-num ${isDelivered?'done':''}">${isDelivered?'✓':(idx+1)}</div>
+        <div class="route-info">
+          <div class="route-name">${name}</div>
+          ${address?`<div class="route-address">${address}${postcode?' · '+postcode:''}</div>`:''}
+          ${dietary?`<div class="route-notes">⚠ ${dietary}</div>`:''}
+          ${driverNotes?`<div class="route-notes" style="color:var(--blue)">📝 ${driverNotes}</div>`:''}
+        </div>
+      </div>
+      ${items.length?`<div class="route-items">${items.map(it=>`<div class="route-item">${it.dishName||it.dish||''} ×${it.qty||1}</div>`).join('')}</div>`:''}
+      <div class="route-btn">
+        ${phone?`<button class="route-action-btn call" onclick="window.location='tel:${phone}'">📞 Call</button>`:''}
+        <button class="route-action-btn confirm" onclick="toggleDelivered('${order.id}',this)">
+          ${isDelivered?'↩ Undo':'✓ Delivered'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setDelFilter(s, el){
+  delFilter=s;
+  document.querySelectorAll('#del-filter-row .filter-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderDelivery();
+}
+
+function toggleDelivered(ordId, btn){
+  if(!DB.routeConfirmations) DB.routeConfirmations={};
+  const current=DB.routeConfirmations[ordId]?.delivered||false;
+  DB.routeConfirmations[ordId]={...DB.routeConfirmations[ordId], delivered:!current, ts:Date.now()};
+  saveToFirebase();
+  notify(current?'↩ Unmarked':'✓ Delivered');
+  renderDelivery();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE
+// ═══════════════════════════════════════════════════════════════
+let _fbApp=null,_fbDb=null,_fbRef=null,_fbListening=false,_fbTimer=null,_localWrite=false;
+
+function setSyncUI(state, txt){
+  const pip=document.getElementById('sync-pip');
+  const label=document.getElementById('sync-txt');
+  if(pip){ pip.className='sync-pip'; if(state) pip.classList.add(state); }
+  if(label) label.textContent=txt;
+}
+
+function initFirebase(){
+  let raw='';
+  try{ raw=localStorage.getItem('29perf_fb_config')||''; }catch(e){}
+  if(!raw){ setSyncUI('','—'); return false; }
+  try{
+    const cfg=JSON.parse(raw);
+    if(!cfg.databaseURL) throw new Error('no databaseURL');
+    if(!firebase.apps.length){ _fbApp=firebase.initializeApp(cfg); }
+    else { _fbApp=firebase.apps[0]; }
+    _fbDb=firebase.database(_fbApp);
+    _fbRef=_fbDb.ref('29perfOS/data');
+    setSyncUI('syncing','syncing…');
+    startFbListener();
+    return true;
+  }catch(e){ setSyncUI('err','error'); return false; }
+}
+
+function startFbListener(){
+  if(_fbListening||!_fbRef) return;
+  _fbListening=true;
+  firebase.database(_fbApp).ref('.info/connected').on('value',snap=>{
+    setSyncUI(snap.val()?'ok':'err', snap.val()?'live':'offline');
+  });
+  _fbRef.on('value',snap=>{
+    if(_localWrite){ _localWrite=false; return; }
+    const remote=snap.val();
+    if(!remote) return;
+    const remoteTs=remote._ts||0;
+    if(remoteTs>(_lastSaved||0)+500){
+      delete remote._ts;
+      Object.assign(DB,remote);
+      refreshCurrentPage();
+      notify('☁️ Synced');
+    }
+  });
+}
+
+let _lastSaved=0;
+function saveToFirebase(){
+  if(!_fbRef) return;
+  clearTimeout(_fbTimer);
+  setSyncUI('syncing','saving…');
+  _fbTimer=setTimeout(()=>{
+    const payload=Object.assign({},DB,{_ts:Date.now()});
+    _localWrite=true; _lastSaved=Date.now();
+    _fbRef.set(payload).then(()=>setSyncUI('ok','saved ✓')).catch(()=>{ _localWrite=false; setSyncUI('err','failed'); });
+  },1500);
+}
+
+function loadFromFirebase(cb){
+  if(!_fbRef){ cb(false); return; }
+  _fbRef.once('value').then(snap=>{
+    const r=snap.val();
+    if(r){ delete r._ts; Object.assign(DB,r); cb(true); }
+    else cb(false);
+  }).catch(()=>cb(false));
+}
+
+function refreshCurrentPage(){
+  const active=document.querySelector('.page.active');
+  if(!active) return;
+  const id=active.id.replace('page-','');
+  const renders={home:renderHome,menu:renderMenu,production:renderProd,pack:renderPack,purchasing:renderPurchasing,delivery:renderDelivery};
+  if(renders[id]) try{ renders[id](); }catch(e){}
+}
+
+// ── Setup UI ─────────────────────────────────────────────────
+function openFbSetup(){
+  let existing='';
+  try{ existing=localStorage.getItem('29perf_fb_config')||''; }catch(e){}
+  if(existing){ try{ document.getElementById('fb-input').value=JSON.stringify(JSON.parse(existing),null,2); }catch(e){} }
+  document.getElementById('fb-screen').classList.add('open');
+}
+function closeFbScreen(){ document.getElementById('fb-screen').classList.remove('open'); }
+function skipFb(){ try{ localStorage.setItem('29perf_fb_skipped','1'); }catch(e){} closeFbScreen(); setSyncUI('','local'); }
+
+function connectFb(){
+  const raw=document.getElementById('fb-input').value.trim();
+  const errEl=document.getElementById('fb-err');
+  const inputEl=document.getElementById('fb-input');
+  errEl.textContent=''; inputEl.classList.remove('err');
+  if(!raw){ errEl.textContent='Paste your config above.'; inputEl.classList.add('err'); return; }
+  let cleaned=raw.replace(/^\s*\/\/.*$/gm,'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/^import\s+.*$/gm,'').replace(/^export\s+.*$/gm,'').replace(/const\s+app\s*=.*?;/g,'');
+  const braceMatch=cleaned.match(/\{[^{}]*apiKey[^{}]*\}/s)||cleaned.match(/\{[\s\S]*?\}/g)?.slice(-1);
+  if(braceMatch) cleaned=Array.isArray(braceMatch)?braceMatch[0]:braceMatch;
+  cleaned=cleaned.replace(/;\s*$/,'').replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g,'$1"$2":').trim();
+  let cfg;
+  try{ cfg=JSON.parse(cleaned); }catch(e){ errEl.textContent='Parse error: '+e.message; inputEl.classList.add('err'); return; }
+  if(!cfg.databaseURL){ errEl.textContent='Missing databaseURL — ensure Realtime Database is enabled in Firebase.'; inputEl.classList.add('err'); return; }
+  try{ localStorage.setItem('29perf_fb_config',JSON.stringify(cfg)); }catch(e){}
+  closeFbScreen();
+  _fbListening=false;
+  try{ firebase.apps.forEach(a=>a.delete()); }catch(e){}
+  _fbApp=null;_fbDb=null;_fbRef=null;
+  const ok=initFirebase();
+  if(ok){
+    loadFromFirebase(got=>{ if(got) refreshCurrentPage(); });
+    notify('🔗 Connected!');
+  } else { setSyncUI('err','failed'); notify('⚠️ Connection failed'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+(function init(){
+  const fbOk=initFirebase();
+  if(fbOk){
+    loadFromFirebase(got=>{ renderHome(); if(!got) notify('No data yet — add it on desktop'); });
+  } else {
+    renderHome();
+    const skipped=localStorage.getItem('29perf_fb_skipped')==='1';
+    if(!skipped) setTimeout(openFbSetup, 600);
+  }
+})();
+</script>
+</body>
+</html>
