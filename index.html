@@ -1615,6 +1615,16 @@ function showConfirmation() {
       + '<span>Session total</span><span>£' + sessTotal.toFixed(2) + '</span>'
       + '</div></div>';
   });
+  // Delivery fee line
+  var deliveryFee = state.deliveryFee || 0;
+  var isFree = deliveryFee === 0;
+  breakdownHtml += '<div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:10px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;font-size:13px">'
+    + '<span style="color:var(--text2)">Delivery</span>'
+    + '<span style="font-weight:600;color:' + (isFree ? '#30d158' : 'var(--text1)') + '">'
+    + (isFree ? '✓ Free (Coventry)' : '£' + deliveryFee.toFixed(2) + ' (West Midlands)')
+    + '</span></div></div>';
+
   document.getElementById('confirm-order-breakdown').innerHTML = breakdownHtml;
 
   document.getElementById('pay-amount').textContent = '£' + grandTotal.toFixed(2);
