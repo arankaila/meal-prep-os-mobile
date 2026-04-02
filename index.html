@@ -711,22 +711,36 @@ var state = {
 };
 
 // ── Delivery zone helper ──────────────────────────────────────────────────────
-// Returns { valid: bool, fee: number, label: string, message: string }
+// Free:    CV1–CV6  (Coventry city)
+// £5:      CV7, B, WS, WV, DY  (West Midlands up to Wolverhampton)
+// Blocked: everything else (CV8+, all other areas)
 function getDeliveryZone(postcode) {
-  var clean  = (postcode || '').trim().toUpperCase().replace(/\s+/g, '');
-  var prefix = clean.match(/^([A-Z]+\d+)/);
-  if (!prefix) return { valid: false, fee: 0, label: '', message: 'Please enter a valid postcode.' };
-  var area   = clean.match(/^([A-Z]+)/)[1]; // letter part only e.g. CV, B, WS, WV, DY
+  var clean = (postcode || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!clean) return { valid: false, fee: 0, label: '', message: 'Please enter a valid postcode.' };
 
-  if (area === 'CV') {
+  var areaMatch = clean.match(/^([A-Z]+)(\d+)/);
+  if (!areaMatch) return { valid: false, fee: 0, label: '', message: 'Please enter a valid postcode.' };
+
+  var letters = areaMatch[1];   // e.g. CV, B, WS
+  var number  = parseInt(areaMatch[2], 10); // e.g. 1, 7, 12
+
+  // Coventry city — free
+  if (letters === 'CV' && number >= 1 && number <= 6) {
     return { valid: true, fee: 0, label: 'Free delivery (Coventry)', message: '' };
   }
-  if (['B','WS','WV','DY'].indexOf(area) !== -1) {
+
+  // West Midlands up to Wolverhampton — £5
+  if (letters === 'CV' && number === 7) {
     return { valid: true, fee: 5, label: '£5.00 delivery (West Midlands)', message: '' };
   }
+  if (['B', 'WS', 'WV', 'DY'].indexOf(letters) !== -1) {
+    return { valid: true, fee: 5, label: '£5.00 delivery (West Midlands)', message: '' };
+  }
+
+  // Everything else — outside delivery zone
   return {
     valid: false, fee: 0, label: '',
-    message: 'Sorry, we currently only deliver within Coventry and the West Midlands. Please check your postcode.'
+    message: 'Sorry, we currently only deliver within Coventry and the West Midlands (up to Wolverhampton). Please check your postcode or contact us directly.'
   };
 }
 
