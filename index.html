@@ -639,12 +639,12 @@ var EMAILJS_SERVICE_ID  = 'service_4twh0op';
 var EMAILJS_TEMPLATE_ID = 'template_9pctcia';
 // ───────────────────────────────────────────────────────────────
 
-function sendOrderNotification(customer, ordersCreated, weekLabel) {
+function sendOrderNotification(customer, ordersCreated, weekLabel, deliveryFee) {
   if (!EMAILJS_PUBLIC_KEY || EMAILJS_PUBLIC_KEY === 'PASTE-PUBLIC-KEY-HERE') return;
 
   try { emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); } catch(e) { /* already initialised — safe to continue */ }
 
-  var grandTotal = ordersCreated.reduce(function(s, o) { return s + o.sessTotal; }, 0);
+  var grandTotal = (deliveryFee || 0) + ordersCreated.reduce(function(s, o) { return s + o.sessTotal; }, 0);
 
   // Build HTML dish rows — styled to match glass email template
   var orderRowsHtml = ordersCreated.map(function(o) {
@@ -669,6 +669,15 @@ function sendOrderNotification(customer, ordersCreated, weekLabel) {
         + '<td style="padding:8px 16px 12px;font-size:13px;color:#8e8e93;text-align:right">&pound;' + o.sessTotal.toFixed(2) + '</td>'
       + '</tr>';
   }).join('<tr><td colspan="2" style="padding:0;height:1px;background:rgba(255,255,255,0.06)"></td></tr>');
+
+  // Append delivery fee row
+  var deliveryRow = '<tr><td colspan="2" style="padding:0;height:1px;background:rgba(255,255,255,0.06)"></td></tr>'
+    + '<tr>'
+    + '<td style="padding:10px 16px;font-size:14px;color:#f2f2f7;border-bottom:1px solid rgba(255,255,255,0.06)">Delivery</td>'
+    + '<td style="padding:10px 16px;font-size:14px;text-align:right;border-bottom:1px solid rgba(255,255,255,0.06);color:' + (deliveryFee > 0 ? '#f2f2f7' : '#30d158') + '">'
+    + (deliveryFee > 0 ? '&pound;' + deliveryFee.toFixed(2) : 'Free') + '</td>'
+    + '</tr>';
+  orderRowsHtml += deliveryRow;
 
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
     email:            '29performance@gmail.com',
@@ -697,8 +706,29 @@ var state = {
   step:     1,
   sessions: [],          // ['sunday'] / ['wednesday'] / ['sunday','wednesday']
   picks:    { sunday: {}, wednesday: {} },  // {dishId: qty}
-  customer: { name:'', email:'', phone:'', address1:'', address2:'', city:'', postcode:'', notes:'' }
+  customer: { name:'', email:'', phone:'', address1:'', address2:'', city:'', postcode:'', notes:'' },
+  deliveryFee: 0         // set by postcode check in validateDetails
 };
+
+// ── Delivery zone helper ──────────────────────────────────────────────────────
+// Returns { valid: bool, fee: number, label: string, message: string }
+function getDeliveryZone(postcode) {
+  var clean  = (postcode || '').trim().toUpperCase().replace(/\s+/g, '');
+  var prefix = clean.match(/^([A-Z]+\d+)/);
+  if (!prefix) return { valid: false, fee: 0, label: '', message: 'Please enter a valid postcode.' };
+  var area   = clean.match(/^([A-Z]+)/)[1]; // letter part only e.g. CV, B, WS, WV, DY
+
+  if (area === 'CV') {
+    return { valid: true, fee: 0, label: 'Free delivery (Coventry)', message: '' };
+  }
+  if (['B','WS','WV','DY'].indexOf(area) !== -1) {
+    return { valid: true, fee: 5, label: '£5.00 delivery (West Midlands)', message: '' };
+  }
+  return {
+    valid: false, fee: 0, label: '',
+    message: 'Sorry, we currently only deliver within Coventry and the West Midlands. Please check your postcode.'
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  FIREBASE INIT  — reads config from localStorage automatically
@@ -1242,7 +1272,12 @@ function validateDetails() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     showErr('err-details', 'Please enter a valid email address.'); return false;
   }
+  var zone = getDeliveryZone(postcode);
+  if (!zone.valid) {
+    showErr('err-details', zone.message); return false;
+  }
   hideErr('err-details');
+  state.deliveryFee = zone.fee;
   state.customer = {
     name:     name,
     email:    email.toLowerCase(),
@@ -1362,6 +1397,18 @@ function renderSummary() {
     '<div class="summary-row"><span class="sr-label">Address</span><span class="sr-val" style="text-align:right;max-width:65%">' + escHtml(addrLine) + '</span></div>' +
     (c.notes ? '<div class="summary-row"><span class="sr-label">Notes</span><span class="sr-val" style="text-align:right;max-width:60%">' + escHtml(c.notes) + '</span></div>' : '') +
     '</div>';
+
+  // Delivery fee
+  var deliveryFee = state.deliveryFee || 0;
+  var zone = getDeliveryZone(state.customer.postcode || '');
+  html += '<div class="summary-block">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;font-size:13px">' +
+    '<span style="color:var(--text2)">Delivery</span>' +
+    '<span style="font-weight:600;color:' + (deliveryFee === 0 ? '#30d158' : 'var(--text1)') + '">' +
+    (deliveryFee === 0 ? 'Free (Coventry)' : '£' + deliveryFee.toFixed(2) + ' (West Midlands)') +
+    '</span></div></div>';
+
+  grandTotal += deliveryFee;
 
   // Grand total
   html += '<div class="summary-block">' +
@@ -1512,7 +1559,7 @@ function submitOrder() {
         }).filter(function(i){ return i.qty > 0; });
         return { session: o.session === 'sunday' ? 'Sunday' : 'Wednesday', items: items, sessTotal: o.sessTotal };
       });
-      sendOrderNotification(state.customer, notifOrders, week);
+      sendOrderNotification(state.customer, notifOrders, week, state.deliveryFee || 0);
     } catch(e) { /* silent — never block the customer journey */ }
 
     // Show confirmation
@@ -1526,7 +1573,7 @@ function showPayModal() {
 }
 
 function showConfirmation() {
-  var grandTotal = state.sessions.reduce(function(total, sess) {
+  var grandTotal = (state.deliveryFee || 0) + state.sessions.reduce(function(total, sess) {
     var picks = state.picks[sess] || {};
     return total + Object.keys(picks).reduce(function(s, dishId) {
       var qty = picks[dishId] || 0;
